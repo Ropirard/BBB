@@ -1,0 +1,18 @@
+name: betterBrickBreaker
+
+services:
+  # NodeJS
+  node:
+    container_name: ${COMPOSE_PROJECT_NAME}_node
+    image: "node:22-alpine"
+    user: "node"
+    working_dir: /home/node/app
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./app:/home/node/app
+    expose:
+      - "8081"
+    ports:
+      - "8001:8001"
+    command: sh -c "npm install && npm start"
