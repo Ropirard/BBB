@@ -41,6 +41,9 @@ class Game
     // Données des niveaux
     levels;
 
+    // Score du joueur
+    score = 0;
+
     // Contexte de dessin du canvas
     ctx;
 
@@ -50,6 +53,8 @@ class Game
     // <span> de débug
     debugSpan;
     debugInfo = '';
+    // Élément d'affichage du score
+    elScore;
 
     // Images
     images = {
@@ -104,6 +109,9 @@ class Game
         const elH1 = document.createElement('h1');
         elH1.textContent = 'Arkanoïd';
 
+        this.elScore = document.createElement('h2');
+        this.elScore.textContent = 'Score : ' + this.score;
+
         const elCanvas = document.createElement( 'canvas' );
         elCanvas.width = this.config.canvasSize.width;
         elCanvas.height = this.config.canvasSize.height;
@@ -111,7 +119,7 @@ class Game
         // Débug box
         this.debugSpan = document.createElement( 'span' );
         
-        document.body.append( elH1, elCanvas, this.debugSpan );
+        document.body.append( elH1, this.elScore, elCanvas, this.debugSpan );
 
         // Récupération du contexte de dessin
         this.ctx = elCanvas.getContext('2d');
@@ -356,7 +364,13 @@ class Game
 
                 // Ici on a forcément une collision (car la première clause du switch fait un return)
                 // Décrément du compteur de résistance de la brique
-                theBrick.strength --;
+                theBrick.strength--;
+                if (theBrick.strength === 0) {
+                    this.score += 100;
+                    if (this.elScore) {
+                        this.elScore.textContent = 'Score : ' + this.score;
+                    }
+                }
             });
 
             // Collision avec le paddle
