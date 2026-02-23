@@ -1,5 +1,6 @@
 import GameObject from "./GameObject";
 import theGame from "./Game";
+import unbreakableBrickImg from '../assets/img/unbreakableBrick.png';
 
 export default class Brick extends GameObject
 {
@@ -12,10 +13,17 @@ export default class Brick extends GameObject
         this.type = strength;
     }
 
-    draw() {
-        const sourceX = (this.size.width * this.type) - this.size.width;
-        const sourceY = (this.size.height * this.strength) - this.size.height;
-
+    draw() {       
+        let sourceX, sourceY;
+        if (this.type < 0) {
+            // Pour les briques incassables, chaque type (-1, -2, ...) correspond à une tuile différente
+            // type = -1 => tuile 0, type = -2 => tuile 1, etc.
+            sourceX = this.size.width * (-(this.type + 1));
+            sourceY = 0;
+        } else {
+            sourceX = (this.size.width * this.type) - this.size.width;
+            sourceY = (this.size.height * this.strength) - this.size.height;
+        }
         theGame.ctx.drawImage(
             this.image,
             sourceX,

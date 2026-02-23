@@ -7,6 +7,7 @@ import levelsConfig from '../levels.json';
 import ballImgSrc from '../assets/img/ball.png';
 import paddleImgSrc from '../assets/img/paddle.png';
 import brickImgSrc from '../assets/img/brick.png';
+import unbreakableBrickImgSrc from '../assets/img/unbreakableBrick.png';
 import edgeImgSrc from '../assets/img/edge.png';
 import Ball from './Ball';
 import GameObject from './GameObject';
@@ -146,6 +147,11 @@ class Game
         imgBrick.src = brickImgSrc;
         this.images.brick = imgBrick;
 
+        // Brique incassable
+        const imgUnbreakableBrick = new Image();
+        imgUnbreakableBrick.src = unbreakableBrickImgSrc;
+        this.images.unbreakableBrick = imgUnbreakableBrick;
+
         // Bordure
         const imgEdge = new Image();
         imgEdge.src = edgeImgSrc;
@@ -242,8 +248,11 @@ class Game
                 // Si la valeur trouvée est 0, c'est un espace vide, donc on passe à la colonne suivante
                 if( brickType == 0 ) continue;
 
-                // Si on bien une brique, on la crée et on la met dans le state
-                const brick = new Brick( this.images.brick, 50, 25, brickType );
+                // Choix de l'image selon le type
+                let brickImage = brickType < 0 ? this.images.unbreakableBrick : this.images.brick;
+
+                // Si on a bien une brique, on la crée et on la met dans le state
+                const brick = new Brick( brickImage, 50, 25, brickType );
                 brick.setPosition(
                     20 + (50 * column),
                     20 + (25 * line)
@@ -365,6 +374,7 @@ class Game
                 // Ici on a forcément une collision (car la première clause du switch fait un return)
                 // Décrément du compteur de résistance de la brique
                 theBrick.strength--;
+                // Ajout du score si la brique atteint 0 (se casse)
                 if (theBrick.strength === 0) {
                     this.score += 100;
                     if (this.elScore) {
