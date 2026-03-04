@@ -59,6 +59,9 @@ class Game
     perforingBullet = false;
     stickyBall = false;
     
+    // Minuteurs pour les pouvoirs à durée limitée
+    powerupTimers = {};
+
     laser = 0;
 
     // Contexte de dessin du canvas
@@ -505,7 +508,7 @@ class Game
         const roll = Math.random();
         if (roll < 1/this.probability) {
             // Liste des types de pouvoir correspondant aux clés dans this.images
-            const powerUpTypes = ['stickyBall', 'laser', 'perforingBall', 'largeSmall', 'multiBall'];
+            const powerUpTypes = ['largeSmall'];
             
             // Sélection d'un type aléatoire
             const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
@@ -532,7 +535,23 @@ class Game
                 break;
             case 'largeSmall':
                 console.log("Effet: largeSmall !");
-                // Logique pour agrandir ou rétrécir le paddle
+                // On choisit 60 (petit) ou 140 (grand)
+                const newWidth = Math.random() < 0.5 ? 60 : 140;
+                console.log("NOUVELLE LARGEUR : ", newWidth)
+                
+                // On applique tout de suite la nouvelle taille à l'objet paddle
+                this.state.paddle.size.width = newWidth;
+                
+                // Si un minuteur était déjà en cours pour remettre le paddle à 100, on l'annule !
+                if (this.powerupTimers.largeSmall) {
+                    clearTimeout(this.powerupTimers.largeSmall);
+                }
+
+                // On relance un nouveau minuteur complet de 5 secondes
+                this.powerupTimers.largeSmall = setTimeout(() => {
+                    this.state.paddle.size.width = this.config.paddleSize.width; // Remet après 7 secondes
+                    this.largeSmall = false;    
+                }, 7000);
                 break;
             case 'perforingBall':
                 console.log("Effet: perforingBall !");

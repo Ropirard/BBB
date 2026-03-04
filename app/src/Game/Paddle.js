@@ -11,18 +11,18 @@ export default class Paddle extends MovingObject
     frameRate = 20;
 
     draw() {
-        const sourceY = this.animationIndex * this.size.height;
+        const sourceY = this.animationIndex * 20; // Utiliser la hauteur d'origine de l'image (20) pour la source
 
         theGame.ctx.drawImage(
             this.image,
             0,
             sourceY,
-            this.size.width,
-            this.size.height,
+            100, // Utiliser la largeur d'origine de l'image (100) pour la source
+            20,  // Utiliser la hauteur d'origine de l'image (20) pour la source
             this.position.x,
             this.position.y,
-            this.size.width,
-            this.size.height
+            this.size.width, // La nouvelle largeur étirée/rétrécie
+            this.size.height // La nouvelle hauteur du paddle
         );
     }
 
