@@ -14,6 +14,13 @@ import GameObject from './GameObject';
 import CollisionType from './DataType/CollisionType';
 import Paddle from './Paddle';
 import Brick from './Brick';
+import PowerUp from './PowerUp';
+// Import des assets des pouvoirs
+import stickyBallImgSrc from '../assets/img/powerup/SB_powerup.png';
+import multiBallImgSrc from '../assets/img/powerup/MB_powerup.png';
+import laserImgSrc from '../assets/img/powerup/L_powerup.png';
+import largeSmallImgSrc from '../assets/img/powerup/LS_powerup.png';
+import perforingBallImgSrc from '../assets/img/powerup/PB_powerup.png';
 
 class Game
 {
@@ -44,6 +51,15 @@ class Game
 
     // Score du joueur
     score = 0;
+
+    // Probabilité de faire tomber un power-up
+    probability = 3;
+
+    // Pouvoirs
+    perforingBullet = false;
+    stickyBall = false;
+    
+    laser = 0;
 
     // Contexte de dessin du canvas
     ctx;
@@ -77,6 +93,8 @@ class Game
         bouncingEdges: [],
         // Paddle
         paddle: null,
+        // Bonus actifs
+        powerups: [],
         // Entrées utilisateur
         userInput: {
             paddleLeft: false,
@@ -156,6 +174,32 @@ class Game
         const imgEdge = new Image();
         imgEdge.src = edgeImgSrc;
         this.images.edge = imgEdge;
+
+        // POUVOIRS
+        // Balle collante
+        const imgStickyBallPowerup = new Image();
+        imgStickyBallPowerup.src = stickyBallImgSrc;
+        this.images.stickyBall = imgStickyBallPowerup;
+
+        // Laser
+        const imgLaserPowerup = new Image();
+        imgLaserPowerup.src = laserImgSrc;
+        this.images.laser = imgLaserPowerup;
+
+        // Balle perforante
+        const imgPerforingBallPowerup = new Image();
+        imgPerforingBallPowerup.src = perforingBallImgSrc;
+        this.images.perforingBall = imgPerforingBallPowerup;
+
+        // Changement de taille du paddle
+        const imgLargeSmallPowerup = new Image();
+        imgLargeSmallPowerup.src = largeSmallImgSrc;
+        this.images.largeSmall = imgLargeSmallPowerup;
+
+        // Multi-balle
+        const imgMultiBallPowerup = new Image();
+        imgMultiBallPowerup.src = multiBallImgSrc;
+        this.images.multiBall = imgMultiBallPowerup;
     }
 
     // Mise en place des objets du jeu sur la scene
@@ -360,11 +404,15 @@ class Game
                         return;
 
                     case CollisionType.HORIZONTAL:
-                        theBall.reverseOrientationX();
+                        if (!this.perforingBullet) {
+                            theBall.reverseOrientationX();
+                        }
                         break;
 
                     case CollisionType.VERTICAL:
-                        theBall.reverseOrientationY();
+                        if (!this.perforingBullet) {
+                            theBall.reverseOrientationY();
+                        }
                         break;
 
                     default:
@@ -380,11 +428,19 @@ class Game
                     if (this.elScore) {
                         this.elScore.textContent = 'Score : ' + this.score;
                     }
+                    this.powerUp(theBrick.position.x, theBrick.position.y);
                 }
             });
 
             // Collision avec le paddle
             const paddleCollisionType = theBall.getCollisionType( this.state.paddle );
+            
+            // Si la balle touche le paddle, on désactive le pouvoir perforant
+            if (paddleCollisionType !== CollisionType.NONE && this.perforingBullet) {
+                this.perforingBullet = false;
+                console.log("Pouvoir perforingBall terminé !");
+            }
+
             switch( paddleCollisionType ) {
                 case CollisionType.HORIZONTAL:
                     theBall.reverseOrientationX();
@@ -415,6 +471,84 @@ class Game
 
         // Mise à jour du state.balls avec savedBalls
         this.state.balls = savedBalls;
+
+        // Collisions des power-ups avec le paddle
+        this.state.powerups = this.state.powerups.filter( powerup => {
+            const paddleBounds = this.state.paddle.getBounds();
+            const powerupBounds = powerup.getBounds();
+
+            // Vérification simple de superposition (AABB)
+            const isIntersecting = (
+                paddleBounds.left < powerupBounds.right &&
+                paddleBounds.right > powerupBounds.left &&
+                paddleBounds.top < powerupBounds.bottom &&
+                paddleBounds.bottom > powerupBounds.top
+            );
+
+            if (isIntersecting) {
+                console.log("Power-up attrapé :", powerup.type);
+                // On active l'effet du pouvoir immédiatement
+                this.applyPowerUp(powerup.type);
+                return false; // on le supprime de l'écran et du tableau
+            }
+
+            // On retire également le pouvoir s'il sort par le bas de l'écran
+            if (powerupBounds.top > this.config.canvasSize.height) {
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    powerUp(x, y) {
+        const roll = Math.random();
+        if (roll < 1/this.probability) {
+            // Liste des types de pouvoir correspondant aux clés dans this.images
+            const powerUpTypes = ['stickyBall', 'laser', 'perforingBall', 'largeSmall', 'multiBall'];
+            
+            // Sélection d'un type aléatoire
+            const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+            
+            // Création du power-up (avec une taille par défaut de 30x30, à adapter)
+            const newPowerUp = new PowerUp(this.images[randomType], 25, 25, randomType);
+            
+            // Positionnement du power-up
+            if (x !== undefined && y !== undefined) {
+                newPowerUp.setPosition(x, y);
+            }
+            
+            // Ajout au state pour pouvoir le gérer ensuite
+            this.state.powerups.push(newPowerUp);
+            console.log("POUVOIR CREE :", randomType);
+        } 
+    }
+
+    applyPowerUp(type) {
+        switch (type) {
+            case 'multiBall':
+                console.log("Effet: multiBall !");
+                // Logique pour dupliquer les balles
+                break;
+            case 'largeSmall':
+                console.log("Effet: largeSmall !");
+                // Logique pour agrandir ou rétrécir le paddle
+                break;
+            case 'perforingBall':
+                console.log("Effet: perforingBall !");
+                this.perforingBullet = true; // Exemple: activation du pouvoir
+                break;
+            case 'laser':
+                console.log("Effet: laser !");
+                this.laser = true;
+                break;
+            case 'stickyBall':
+                console.log("Effet: stickyBall !");
+                this.stickyBall = true;
+                break;
+            default:
+                break;
+        }
     }
 
     // Cycle de vie: 3- Mise à jours des données des GameObjects
@@ -422,6 +556,11 @@ class Game
         // Balles
         this.state.balls.forEach( theBall => {
             theBall.update();
+        });
+
+        // Power-ups
+        this.state.powerups.forEach( powerup => {
+            powerup.update();
         });
 
         // Briques
@@ -450,6 +589,13 @@ class Game
         // Dessin des briques
         this.state.bricks.forEach( theBrick => {
             theBrick.draw();
+        });
+
+        // Dessin des power-ups
+        this.state.powerups.forEach( powerup => {
+            if (powerup.active) {
+                powerup.draw(this.ctx);
+            }
         });
 
         // Dessin du paddle
