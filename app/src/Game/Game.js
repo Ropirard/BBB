@@ -19,8 +19,12 @@ import PowerUp from './PowerUp';
 import stickyBallImgSrc from '../assets/img/powerup/SB_powerup.png';
 import multiBallImgSrc from '../assets/img/powerup/MB_powerup.png';
 import laserImgSrc from '../assets/img/powerup/L_powerup.png';
+import laserShootImgSrc from '../assets/img/laser.png';
 import largeSmallImgSrc from '../assets/img/powerup/LS_powerup.png';
 import perforingBallImgSrc from '../assets/img/powerup/PB_powerup.png';
+
+// Import de la classe Laser
+import Laser from './Laser';
 
 class Game
 {
@@ -58,11 +62,12 @@ class Game
     // Pouvoirs
     perforingBullet = false;
     stickyBall = false;
+    laser = 0;
     
     // Minuteurs pour les pouvoirs à durée limitée
     powerupTimers = {};
 
-    laser = 0;
+    laserCooldown = 0;
 
     // Contexte de dessin du canvas
     ctx;
@@ -98,10 +103,13 @@ class Game
         paddle: null,
         // Bonus actifs
         powerups: [],
+        // Lasers
+        lasers: [],
         // Entrées utilisateur
         userInput: {
             paddleLeft: false,
-            paddleRight: false
+            paddleRight: false,
+            shoot: false
         }
     };
 
@@ -188,6 +196,11 @@ class Game
         const imgLaserPowerup = new Image();
         imgLaserPowerup.src = laserImgSrc;
         this.images.laser = imgLaserPowerup;
+
+        // Laser Projectile
+        const imgLaserShoot = new Image();
+        imgLaserShoot.src = laserShootImgSrc;
+        this.images.laserShoot = imgLaserShoot;
 
         // Balle perforante
         const imgPerforingBallPowerup = new Image();
@@ -444,31 +457,69 @@ class Game
                 console.log("Pouvoir perforingBall terminé !");
             }
 
-            switch( paddleCollisionType ) {
-                case CollisionType.HORIZONTAL:
-                    theBall.reverseOrientationX();
-                    break;
+            // Si la balle touche le paddle avec stickyBall, on arrête la balle
+            if (paddleCollisionType !== CollisionType.NONE && this.stickyBall) {
+                // On n'annule pas this.stickyBall ici, pour que le bonus puisse rester si besoin,
+                // ou on l'annule si on ne veut qu'un seul collage. Pour l'instant on laisse.
+                this.stickyBall = false;
+                theBall.isStuck = true;
+                theBall.stuckOffset = theBall.position.x - this.state.paddle.position.x;
+                theBall.speed = 0;
+            }
 
-                case CollisionType.VERTICAL:
-                     // Altération de l'angle en fonction du movement du paddle
-                    let alteration = 0;
-                    if( this.state.userInput.paddleRight )
-                        alteration = -1 * this.config.ball.angleAlteration;
-                    else if( this.state.userInput.paddleLeft )
-                        alteration = this.config.ball.angleAlteration;
+            if (!theBall.isStuck) {
+                switch( paddleCollisionType ) {
+                    case CollisionType.HORIZONTAL:
+                        theBall.reverseOrientationX();
+                        break;
 
-                    theBall.reverseOrientationY(alteration);
-                    
-                    // Correction pour un résultat de 0 et 180 pour éviter une trajectoire horizontale
-                    if( theBall.orientation === 0 )
-                        theBall.orientation = 10;
-                    else if( theBall.orientation === 180 )
-                        theBall.orientation = 170;
+                    case CollisionType.VERTICAL:
+                         // Altération de l'angle en fonction du movement du paddle
+                        let alteration = 0;
+                        if( this.state.userInput.paddleRight )
+                            alteration = -1 * this.config.ball.angleAlteration;
+                        else if( this.state.userInput.paddleLeft )
+                            alteration = this.config.ball.angleAlteration;
 
-                    break;
+                        theBall.reverseOrientationY(alteration);
+                        
+                        // Correction pour un résultat de 0 et 180 pour éviter une trajectoire horizontale
+                        if( theBall.orientation === 0 )
+                            theBall.orientation = 10;
+                        else if( theBall.orientation === 180 )
+                            theBall.orientation = 170;
 
-                default:
-                    break;
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+        });
+
+        // Collisions des lasers avec les briques
+        this.state.lasers.forEach(laser => {
+            let hit = false;
+            this.state.bricks.forEach(theBrick => {
+                if (hit || theBrick.strength === 0) return; // Si déjà touché
+                
+                const collisionType = laser.getCollisionType(theBrick);
+                if (collisionType !== CollisionType.NONE) {
+                    hit = true;
+                    // On casse la brique (ou on la blesse)
+                    theBrick.strength--;
+                    if (theBrick.strength === 0) {
+                        this.score += 100;
+                        if (this.elScore) {
+                            this.elScore.textContent = 'Score : ' + this.score;
+                        }
+                        this.powerUp(theBrick.position.x, theBrick.position.y);
+                    }
+                }
+            });
+            if (hit) {
+                // Pour le retirer
+                laser.position.y = -1000;
             }
         });
 
@@ -508,7 +559,7 @@ class Game
         const roll = Math.random();
         if (roll < 1/this.probability) {
             // Liste des types de pouvoir correspondant aux clés dans this.images
-            const powerUpTypes = ['largeSmall'];
+            const powerUpTypes = ['stickyBall'];
             
             // Sélection d'un type aléatoire
             const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
@@ -559,7 +610,7 @@ class Game
                 break;
             case 'laser':
                 console.log("Effet: laser !");
-                this.laser = true;
+                this.laser += 5;
                 break;
             case 'stickyBall':
                 console.log("Effet: stickyBall !");
@@ -573,14 +624,45 @@ class Game
     // Cycle de vie: 3- Mise à jours des données des GameObjects
     updateObjects() {
         // Balles
+        let hasReleasedBall = false;
+
         this.state.balls.forEach( theBall => {
-            theBall.update();
+            if (theBall.isStuck) {
+                // Suivre le paddle
+                theBall.position.x = this.state.paddle.position.x + theBall.stuckOffset;
+                theBall.position.y = this.state.paddle.position.y - theBall.size.height;
+
+                // Si le joueur tire, on libère la balle
+                if (this.state.userInput.shoot) {
+                    theBall.isStuck = false;
+                    theBall.speed = this.config.ball.speed;
+                    // On lance la balle de manière parfaitement verticale (vers le haut)
+                    theBall.orientation = 90;
+                    theBall.position.y -= 5; // Décolle légèrement la balle pour éviter de refaire collision avec le paddle à la prochaine frame
+                    hasReleasedBall = true;
+                    theBall.update();
+                }
+            } else {
+                theBall.update();
+            }
         });
+
+        // Si on a libéré une balle, on empêche de tirer un laser en même temps (un seul effet par espace)
+        if (hasReleasedBall) {
+            this.state.userInput.shoot = false;
+        }
 
         // Power-ups
         this.state.powerups.forEach( powerup => {
             powerup.update();
         });
+
+        // Lasers
+        this.state.lasers.forEach( laser => {
+            laser.update();
+        });
+        // On retire les lasers qui dépassent en haut
+        this.state.lasers = this.state.lasers.filter( laser => laser.position.y + laser.size.height > 0);
 
         // Briques
         // On ne conserve dans le state que les briques dont strength est différent de 0
@@ -588,6 +670,24 @@ class Game
     
         // Paddle
         this.state.paddle.updateKeyframe();
+
+        // Gestion du cooldown laser
+        if (this.laserCooldown > 0) {
+            this.laserCooldown--;
+        }
+
+        // Tir de laser
+        if (this.state.userInput.shoot && this.laser > 0 && this.laserCooldown <= 0) {
+            const paddle = this.state.paddle;
+            // On le fait partir du centre du paddle, orientation 90 degs (vers le haut), vitesse 4
+            const laserObj = new Laser(this.images.laserShoot, 5, 20, 90, 4);
+            laserObj.setPosition(paddle.position.x + paddle.size.width / 2 - 2, paddle.position.y);
+            this.state.lasers.push(laserObj);
+
+            this.laser--; // on consomme un laser
+            this.laserCooldown = 30; // on attend avant le prochain
+            this.state.userInput.shoot = false; // on oblige à relâcher la touche, ou alors on laisse rafale ? On laisse tir par tir
+        }
     }
 
     // Cycle de vie: 4- Rendu graphique des GameObjects
@@ -608,6 +708,11 @@ class Game
         // Dessin des briques
         this.state.bricks.forEach( theBrick => {
             theBrick.draw();
+        });
+
+        // Dessin des lasers
+        this.state.lasers.forEach( laser => {
+            laser.draw();
         });
 
         // Dessin des power-ups
@@ -689,6 +794,9 @@ class Game
                 this.state.userInput.paddleRight = false;
 
             this.state.userInput.paddleLeft = isActive;
+        }
+        else if( evt.key === ' ' || evt.key === 'Spacebar' ) {
+            this.state.userInput.shoot = isActive;
         }
 
     }
