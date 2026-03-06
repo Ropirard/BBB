@@ -202,7 +202,11 @@ class Game
         if (this.numPlayers === 1) {
             scoreDisplay.textContent = 'Score final : ' + this.playerStats[0].score;
         } else {
-            scoreDisplay.innerHTML = `Score J1 : ${this.playerStats[0].score}<br>Score J2 : ${this.playerStats[1].score}`;
+            if (this.playerStats[0].score > this.playerStats[1].score) {
+                scoreDisplay.innerHTML = `Score J1 : ${this.playerStats[0].score}<br>Score J2 : ${this.playerStats[1].score}`;
+            } else {
+                scoreDisplay.innerHTML = `Score J2 : ${this.playerStats[1].score}<br>Score J1 : ${this.playerStats[0].score}`;
+            }
         }
         scoreDisplay.className = 'end-score';
         scoreDisplay.style.textAlign = 'center';
@@ -542,7 +546,7 @@ class Game
                 theBrick.strength--;
                 // Ajout du score si la brique atteint 0 (se casse)
                 if (theBrick.strength === 0) {
-                    this.playerStats[this.activePlayer].score += 100;
+                    this.playerStats[this.activePlayer].score += theBrick.type * 100;
                     this.updateUI();
                     this.powerUp(theBrick.position.x, theBrick.position.y);
                 }
@@ -609,7 +613,7 @@ class Game
                     // On casse la brique (ou on la blesse)
                     theBrick.strength--;
                     if (theBrick.strength === 0) {
-                        this.playerStats[this.activePlayer].score += 100;
+                        this.playerStats[this.activePlayer].score += theBrick.type * 100;
                         this.updateUI();
                         this.powerUp(theBrick.position.x, theBrick.position.y);
                     }
