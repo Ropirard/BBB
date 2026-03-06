@@ -56,6 +56,9 @@ class Game
     // Score du joueur
     score = 0;
 
+    // Vies du joueur
+    lives = 3;
+
     // Probabilité de faire tomber un power-up
     probability = 3;
 
@@ -80,6 +83,8 @@ class Game
     debugInfo = '';
     // Élément d'affichage du score
     elScore;
+    // Élément d'affichage des vies
+    elLives;
 
     // Images
     images = {
@@ -142,6 +147,9 @@ class Game
         this.elScore = document.createElement('h2');
         this.elScore.textContent = 'Score : ' + this.score;
 
+        this.elLives = document.createElement('h2');
+        this.elLives.textContent = 'Vies : ' + this.lives;
+
         const elCanvas = document.createElement( 'canvas' );
         elCanvas.width = this.config.canvasSize.width;
         elCanvas.height = this.config.canvasSize.height;
@@ -149,7 +157,7 @@ class Game
         // Débug box
         this.debugSpan = document.createElement( 'span' );
         
-        document.body.append( elH1, this.elScore, elCanvas, this.debugSpan );
+        document.body.append( elH1, this.elScore, this.elLives, elCanvas, this.debugSpan );
 
         // Récupération du contexte de dessin
         this.ctx = elCanvas.getContext('2d');
@@ -559,7 +567,7 @@ class Game
         const roll = Math.random();
         if (roll < 1/this.probability) {
             // Liste des types de pouvoir correspondant aux clés dans this.images
-            const powerUpTypes = ['multiBall'];
+            const powerUpTypes = ['stickyBall'];
             
             // Sélection d'un type aléatoire
             const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
@@ -775,15 +783,48 @@ class Game
         // Cycle 4
         this.renderObjects();
 
-        // S'il n'y a aucune balle restante, on a perdu
+        // S'il n'y a aucune balle restante, on a perdu une vie
         if( this.state.balls.length <= 0 ) {
-            console.log( "Kaboooooooom !!!");
-            // On sort de loop()
-            return;
+            this.lives--;
+            if (this.elLives) {
+                this.elLives.textContent = 'Vies : ' + this.lives;
+            }
+
+            if (this.lives > 0) {
+                this.resetBall();
+            } else {
+                // On sort de loop()
+                return;
+            }
         }
 
         // Appel de la frame suivante
         requestAnimationFrame( this.loop.bind(this) );
+    }
+
+    resetBall() {
+        const ballDiameter = this.config.ball.radius * 2;
+        const ball = new Ball(
+            this.images.ball,
+            ballDiameter, ballDiameter,
+            this.config.ball.orientation,
+            this.config.ball.speed
+        );
+        ball.isCircular = true;
+        // On la colle au paddle par défaut en son centre
+        ball.isStuck = true;
+        ball.stuckOffset = (this.state.paddle.size.width / 2) - (ballDiameter / 2);
+        ball.setPosition(
+            this.state.paddle.position.x + ball.stuckOffset,
+            this.state.paddle.position.y - ball.size.height
+        );
+        
+        // Reset des timers et power-ups optionnels
+        this.perforingBullet = false;
+        this.stickyBall = false;
+        this.state.paddle.size.width = this.config.paddleSize.width;
+        
+        this.state.balls.push(ball);
     }
 
     // Fonction de test inutile dans le jeu
