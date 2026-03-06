@@ -559,12 +559,12 @@ class Game
         const roll = Math.random();
         if (roll < 1/this.probability) {
             // Liste des types de pouvoir correspondant aux clés dans this.images
-            const powerUpTypes = ['stickyBall'];
+            const powerUpTypes = ['multiBall'];
             
             // Sélection d'un type aléatoire
             const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
             
-            // Création du power-up (avec une taille par défaut de 30x30, à adapter)
+            // Création du power-up (avec une taille par défaut (ici 25 par 25) que l'on peut modifier)
             const newPowerUp = new PowerUp(this.images[randomType], 25, 25, randomType);
             
             // Positionnement du power-up
@@ -582,23 +582,49 @@ class Game
         switch (type) {
             case 'multiBall':
                 console.log("Effet: multiBall !");
-                // Logique pour dupliquer les balles
+                if (this.state.balls.length > 0) {
+                    // On définit la balle 'de départ'
+                    const originalBall = this.state.balls[0];
+                    const ballDiameter = this.config.ball.radius * 2;
+                    
+                    // Création de la 1ere balle
+                    const ball1 = new Ball(
+                        this.images.ball,
+                        ballDiameter, ballDiameter,
+                        (originalBall.orientation + 30) % 360,
+                        originalBall.speed || this.config.ball.speed
+                    );
+                    ball1.setPosition(originalBall.position.x, originalBall.position.y);
+                    ball1.isCircular = true;
+                    
+                    // Puis de la seconde
+                    const ball2 = new Ball(
+                        this.images.ball,
+                        ballDiameter, ballDiameter,
+                        (originalBall.orientation - 30 + 360) % 360,
+                        originalBall.speed || this.config.ball.speed
+                    );
+                    ball2.setPosition(originalBall.position.x, originalBall.position.y);
+                    ball2.isCircular = true;
+
+                    this.state.balls.push(ball1, ball2);
+                }
                 break;
             case 'largeSmall':
                 console.log("Effet: largeSmall !");
-                // On choisit 60 (petit) ou 140 (grand)
+                // On choisit 60 de width (petit) ou 140 (grand)
                 const newWidth = Math.random() < 0.5 ? 60 : 140;
                 console.log("NOUVELLE LARGEUR : ", newWidth)
                 
                 // On applique tout de suite la nouvelle taille à l'objet paddle
                 this.state.paddle.size.width = newWidth;
                 
-                // Si un minuteur était déjà en cours pour remettre le paddle à 100, on l'annule !
+                // Si un minuteur était déjà en cours pour remettre le paddle à 100 on l'annule 
                 if (this.powerupTimers.largeSmall) {
                     clearTimeout(this.powerupTimers.largeSmall);
                 }
 
-                // On relance un nouveau minuteur complet de 5 secondes
+                // On relance un nouveau minuteur complet de 7 secondes
                 this.powerupTimers.largeSmall = setTimeout(() => {
                     this.state.paddle.size.width = this.config.paddleSize.width; // Remet après 7 secondes
                     this.largeSmall = false;    
@@ -606,7 +632,7 @@ class Game
                 break;
             case 'perforingBall':
                 console.log("Effet: perforingBall !");
-                this.perforingBullet = true; // Exemple: activation du pouvoir
+                this.perforingBullet = true; 
                 break;
             case 'laser':
                 console.log("Effet: laser !");
